@@ -224,7 +224,7 @@ func (logger *Logger) Writer(level int, msg string) error {
 		Timestamp:         time.Now().Unix(),
 		TimestampFormat:   time.Now().Format("2006-01-02 15:04:05"),
 		Millisecond:       time.Now().UnixNano() / 1e6,
-		MillisecondFormat: time.Now().Format("2006-01-02 15:04:05.999"),
+		MillisecondFormat: time.Now().Format("2006-01-02 15:04:05.000"),
 		Level:             level,
 		LevelString:       levelStringMapping[level],
 		Body:              msg,
