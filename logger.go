@@ -438,9 +438,7 @@ func printError(message string) {
 func goroutineId() int {
 	var buf [64]byte
 	n := runtime.Stack(buf[:], false)
-
 	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine"))[0]
 	goId, _ := strconv.Atoi(idField)
-
 	return goId
 }
