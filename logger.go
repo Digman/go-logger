@@ -86,6 +86,7 @@ type loggerMessage struct {
 	File              string `json:"file"`
 	Line              int    `json:"line"`
 	Function          string `json:"function"`
+	ThreadId          int    `json:"thread_id"`
 }
 
 //new logger
@@ -231,6 +232,7 @@ func (logger *Logger) Writer(level int, msg string) error {
 		File:              filename,
 		Line:              line,
 		Function:          funcName,
+		ThreadId:          GoID(),
 	}
 
 	if !logger.synchronous {
@@ -335,6 +337,7 @@ func loggerMessageFormat(format string, loggerMsg *loggerMessage) string {
 	message = strings.Replace(message, "%line%", strconv.Itoa(loggerMsg.Line), 1)
 	message = strings.Replace(message, "%function%", loggerMsg.Function, 1)
 	message = strings.Replace(message, "%body%", loggerMsg.Body, 1)
+	message = strings.Replace(message, "%thread_id%", strconv.Itoa(loggerMsg.ThreadId), 1)
 
 	return message
 }
@@ -430,4 +433,17 @@ func (logger *Logger) Debugf(format string, a ...interface{}) {
 func printError(message string) {
 	fmt.Println(message)
 	os.Exit(0)
+}
+
+func GoID() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine"))[0]
+	GoroutineId, err := strconv.Atoi(idField)
+	if err != nil {
+		return 0
+	}
+
+	return GoroutineId
 }
