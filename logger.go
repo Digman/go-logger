@@ -232,7 +232,7 @@ func (logger *Logger) Writer(level int, msg string) error {
 		File:              filename,
 		Line:              line,
 		Function:          funcName,
-		ThreadId:          GoID(),
+		ThreadId:          goroutineId(),
 	}
 
 	if !logger.synchronous {
@@ -435,15 +435,12 @@ func printError(message string) {
 	os.Exit(0)
 }
 
-func GoID() int {
+func goroutineId() int {
 	var buf [64]byte
 	n := runtime.Stack(buf[:], false)
 
 	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine"))[0]
-	GoroutineId, err := strconv.Atoi(idField)
-	if err != nil {
-		return 0
-	}
+	goId, _ := strconv.Atoi(idField)
 
-	return GoroutineId
+	return goId
 }
