@@ -44,6 +44,8 @@ func easyjson22b64118DecodeGithubComPhachonGoLogger(in *jlexer.Lexer, out *logge
 			out.Millisecond = int64(in.Int64())
 		case "millisecond_format":
 			out.MillisecondFormat = string(in.String())
+		case "millisecond_short":
+			out.MillisecondShort = string(in.String())
 		case "level":
 			out.Level = int(in.Int())
 		case "level_string":
@@ -109,6 +111,16 @@ func easyjson22b64118EncodeGithubComPhachonGoLogger(out *jwriter.Writer, in logg
 			out.RawString(prefix)
 		}
 		out.String(string(in.MillisecondFormat))
+	}
+	{
+		const prefix string = ",\"millisecond_short\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.String(string(in.MillisecondShort))
 	}
 	{
 		const prefix string = ",\"level\":"

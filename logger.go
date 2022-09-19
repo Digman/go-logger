@@ -48,7 +48,7 @@ var levelStringMapping = map[int]string{
 
 var defaultLoggerMessageFormat = "%millisecond_format% [%level_string%] %body%"
 
-//Register logger adapter
+// Register logger adapter
 func Register(adapterName string, newLog adapterLoggerFunc) {
 	if adapters[adapterName] != nil {
 		panic("logger: logger adapter " + adapterName + " already registered!")
@@ -61,7 +61,7 @@ func Register(adapterName string, newLog adapterLoggerFunc) {
 }
 
 type Logger struct {
-	lock        sync.Mutex          //sync lock
+	lock        sync.Mutex          // sync lock
 	outputs     []*outputLogger     // outputs loggers
 	msgChan     chan *loggerMessage // message channel
 	synchronous bool                // is sync
@@ -80,6 +80,7 @@ type loggerMessage struct {
 	TimestampFormat   string `json:"timestamp_format"`
 	Millisecond       int64  `json:"millisecond"`
 	MillisecondFormat string `json:"millisecond_format"`
+	MillisecondShort  string `json:"millisecond_short"`
 	Level             int    `json:"level"`
 	LevelString       string `json:"level_string"`
 	Body              string `json:"body"`
@@ -89,8 +90,8 @@ type loggerMessage struct {
 	ThreadId          int    `json:"thread_id"`
 }
 
-//new logger
-//return logger
+// new logger
+// return logger
 func NewLogger() *Logger {
 	logger := &Logger{
 		outputs:     []*outputLogger{},
@@ -99,15 +100,15 @@ func NewLogger() *Logger {
 		wait:        sync.WaitGroup{},
 		signalChan:  make(chan string, 1),
 	}
-	//default adapter console
+	// default adapter console
 	logger.attach("console", LOGGER_LEVEL_DEBUG, &ConsoleConfig{})
 
 	return logger
 }
 
-//start attach a logger adapter
-//param : adapterName console | file | database | ...
-//return : error
+// start attach a logger adapter
+// param : adapterName console | file | database | ...
+// return : error
 func (logger *Logger) Attach(adapterName string, level int, config Config) error {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
@@ -115,9 +116,9 @@ func (logger *Logger) Attach(adapterName string, level int, config Config) error
 	return logger.attach(adapterName, level, config)
 }
 
-//attach a logger adapter after lock
-//param : adapterName console | file | database | ...
-//return : error
+// attach a logger adapter after lock
+// param : adapterName console | file | database | ...
+// return : error
 func (logger *Logger) attach(adapterName string, level int, config Config) error {
 	for _, output := range logger.outputs {
 		if output.Name == adapterName {
@@ -144,9 +145,9 @@ func (logger *Logger) attach(adapterName string, level int, config Config) error
 	return nil
 }
 
-//start attach a logger adapter
-//param : adapterName console | file | database | ...
-//return : error
+// start attach a logger adapter
+// param : adapterName console | file | database | ...
+// return : error
 func (logger *Logger) Detach(adapterName string) error {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
@@ -154,9 +155,9 @@ func (logger *Logger) Detach(adapterName string) error {
 	return logger.detach(adapterName)
 }
 
-//detach a logger adapter after lock
-//param : adapterName console | file | database | ...
-//return : error
+// detach a logger adapter after lock
+// param : adapterName console | file | database | ...
+// return : error
 func (logger *Logger) detach(adapterName string) error {
 	outputs := []*outputLogger{}
 	for _, output := range logger.outputs {
@@ -169,14 +170,14 @@ func (logger *Logger) detach(adapterName string) error {
 	return nil
 }
 
-//set logger level
-//params : level int
-//func (logger *Logger) SetLevel(level int) {
+// set logger level
+// params : level int
+// func (logger *Logger) SetLevel(level int) {
 //	logger.level = level
-//}
+// }
 
-//set logger synchronous false
-//params : sync bool
+// set logger synchronous false
+// params : sync bool
 func (logger *Logger) SetAsync(data ...int) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
@@ -203,9 +204,9 @@ func (logger *Logger) SetAsync(data ...int) {
 	}
 }
 
-//write log message
-//params : level int, msg string
-//return : error
+// write log message
+// params : level int, msg string
+// return : error
 func (logger *Logger) Writer(level int, msg string) error {
 	funcName := "null"
 	pc, file, line, ok := runtime.Caller(2)
@@ -226,6 +227,7 @@ func (logger *Logger) Writer(level int, msg string) error {
 		TimestampFormat:   time.Now().Format("2006-01-02 15:04:05"),
 		Millisecond:       time.Now().UnixNano() / 1e6,
 		MillisecondFormat: time.Now().Format("2006-01-02 15:04:05.000"),
+		MillisecondShort:  time.Now().Format("01-02 15:04:05.000"),
 		Level:             level,
 		LevelString:       levelStringMapping[level],
 		Body:              msg,
@@ -245,8 +247,8 @@ func (logger *Logger) Writer(level int, msg string) error {
 	return nil
 }
 
-//sync write message to loggerOutputs
-//params : loggerMessage
+// sync write message to loggerOutputs
+// params : loggerMessage
 func (logger *Logger) writeToOutputs(loggerMsg *loggerMessage) {
 	for _, loggerOutput := range logger.outputs {
 		// write level
@@ -259,7 +261,7 @@ func (logger *Logger) writeToOutputs(loggerMsg *loggerMessage) {
 	}
 }
 
-//start async write by read logger.msgChan
+// start async write by read logger.msgChan
 func (logger *Logger) startAsyncWrite() {
 	for {
 		select {
@@ -274,7 +276,7 @@ func (logger *Logger) startAsyncWrite() {
 	}
 }
 
-//flush msgChan data
+// flush msgChan data
 func (logger *Logger) flush() {
 	if !logger.synchronous {
 		for {
@@ -292,7 +294,7 @@ func (logger *Logger) flush() {
 	}
 }
 
-//if SetAsync() or logger.synchronous is false, must call Flush() to flush msgChan data
+// if SetAsync() or logger.synchronous is false, must call Flush() to flush msgChan data
 func (logger *Logger) Flush() {
 	if !logger.synchronous {
 		logger.signalChan <- "flush"
@@ -331,6 +333,7 @@ func loggerMessageFormat(format string, loggerMsg *loggerMessage) string {
 	message = strings.Replace(message, "%timestamp_format%", loggerMsg.TimestampFormat, 1)
 	message = strings.Replace(message, "%millisecond%", strconv.FormatInt(loggerMsg.Millisecond, 10), 1)
 	message = strings.Replace(message, "%millisecond_format%", loggerMsg.MillisecondFormat, 1)
+	message = strings.Replace(message, "%millisecond_short%", loggerMsg.MillisecondShort, 1)
 	message = strings.Replace(message, "%level%", strconv.Itoa(loggerMsg.Level), 1)
 	message = strings.Replace(message, "%level_string%", loggerMsg.LevelString, 1)
 	message = strings.Replace(message, "%file%", loggerMsg.File, 1)
@@ -342,89 +345,89 @@ func loggerMessageFormat(format string, loggerMsg *loggerMessage) string {
 	return message
 }
 
-//log emergency level
+// log emergency level
 func (logger *Logger) Emergency(msg string) {
 	logger.Writer(LOGGER_LEVEL_EMERGENCY, msg)
 }
 
-//log emergency format
+// log emergency format
 func (logger *Logger) Emergencyf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_EMERGENCY, msg)
 }
 
-//log alert level
+// log alert level
 func (logger *Logger) Alert(msg string) {
 	logger.Writer(LOGGER_LEVEL_ALERT, msg)
 }
 
-//log alert format
+// log alert format
 func (logger *Logger) Alertf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_ALERT, msg)
 }
 
-//log critical level
+// log critical level
 func (logger *Logger) Critical(msg string) {
 	logger.Writer(LOGGER_LEVEL_CRITICAL, msg)
 }
 
-//log critical format
+// log critical format
 func (logger *Logger) Criticalf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_CRITICAL, msg)
 }
 
-//log error level
+// log error level
 func (logger *Logger) Error(msg string) {
 	logger.Writer(LOGGER_LEVEL_ERROR, msg)
 }
 
-//log error format
+// log error format
 func (logger *Logger) Errorf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_ERROR, msg)
 }
 
-//log warning level
+// log warning level
 func (logger *Logger) Warning(msg string) {
 	logger.Writer(LOGGER_LEVEL_WARNING, msg)
 }
 
-//log warning format
+// log warning format
 func (logger *Logger) Warningf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_WARNING, msg)
 }
 
-//log notice level
+// log notice level
 func (logger *Logger) Notice(msg string) {
 	logger.Writer(LOGGER_LEVEL_NOTICE, msg)
 }
 
-//log notice format
+// log notice format
 func (logger *Logger) Noticef(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_NOTICE, msg)
 }
 
-//log info level
+// log info level
 func (logger *Logger) Info(msg string) {
 	logger.Writer(LOGGER_LEVEL_INFO, msg)
 }
 
-//log info format
+// log info format
 func (logger *Logger) Infof(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_INFO, msg)
 }
 
-//log debug level
+// log debug level
 func (logger *Logger) Debug(msg string) {
 	logger.Writer(LOGGER_LEVEL_DEBUG, msg)
 }
 
-//log debug format
+// log debug format
 func (logger *Logger) Debugf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	logger.Writer(LOGGER_LEVEL_DEBUG, msg)

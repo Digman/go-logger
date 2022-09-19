@@ -78,6 +78,7 @@ func (adapterApi *AdapterApi) Write(loggerMsg *loggerMessage) error {
 		"timestamp_format":   loggerMsg.TimestampFormat,
 		"millisecond":        strconv.FormatInt(loggerMsg.Millisecond, 10),
 		"millisecond_format": loggerMsg.MillisecondFormat,
+		"millisecond_short":  loggerMsg.MillisecondShort,
 		"level":              strconv.Itoa(loggerMsg.Level),
 		"level_string":       loggerMsg.LevelString,
 		"body":               loggerMsg.Body,
