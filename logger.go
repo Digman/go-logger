@@ -433,6 +433,11 @@ func (logger *Logger) Debugf(format string, a ...interface{}) {
 	logger.Writer(LOGGER_LEVEL_DEBUG, msg)
 }
 
+// alias of Infof
+func (logger *Logger) Printf(format string, a ...interface{}) {
+	logger.Infof(format, a...)
+}
+
 func printError(message string) {
 	fmt.Println(message)
 	os.Exit(0)
