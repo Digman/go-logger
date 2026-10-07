@@ -1,7 +1,9 @@
 package go_logger
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"github.com/Digman/go-logger/utils"
 	"os"
 	"path"
@@ -24,6 +26,8 @@ const (
 const (
 	FILE_ACCESS_LEVEL = 1000
 )
+
+var fileRotateMu sync.Mutex
 
 // adapter file
 type AdapterFile struct {
@@ -224,8 +228,54 @@ func (adapterFile *AdapterFile) Name() string {
 	return FILE_ADAPTER_NAME
 }
 
+// prepareExistingDailyFile archives an existing log when its first record belongs to an older day.
+// This covers process restarts; sliceByDate still handles a process that runs across midnight.
+func prepareExistingDailyFile(filename string) error {
+	fileRotateMu.Lock()
+	defer fileRotateMu.Unlock()
+
+	file, err := os.Open(filename)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	line, readErr := bufio.NewReader(file).ReadString('\n')
+	_ = file.Close()
+	if readErr != nil && len(line) == 0 {
+		return nil
+	}
+	const timestampLayout = "01-02 15:04:05.000"
+	if len(line) < len(timestampLayout) {
+		return nil
+	}
+	loggedAt, err := time.ParseInLocation(timestampLayout, line[:len(timestampLayout)], time.Local)
+	if err != nil {
+		return nil
+	}
+	now := time.Now()
+	if loggedAt.Month() == now.Month() && loggedAt.Day() == now.Day() {
+		return nil
+	}
+
+	loggedDate := time.Date(now.Year(), loggedAt.Month(), loggedAt.Day(), 0, 0, 0, 0, time.Local)
+	if loggedDate.After(now.Add(24 * time.Hour)) {
+		loggedDate = loggedDate.AddDate(-1, 0, 0)
+	}
+	ext := path.Ext(filename)
+	base := strings.TrimSuffix(filename, ext)
+	archive := fmt.Sprintf("%s_%s%s", base, loggedDate.Format("20060102"), ext)
+	if _, err := os.Stat(archive); err == nil {
+		archive = fmt.Sprintf("%s_%s_%s%s", base, loggedDate.Format("20060102"), now.Format("150405"), ext)
+	}
+	return os.Rename(filename, archive)
+}
+
 // init file
 func (fw *FileWriter) initFile() error {
+	// Archive failure must not disable the existing log file.
+	_ = prepareExistingDailyFile(fw.filename)
 
 	//check file exits, otherwise create a file
 	ok, _ := utils.UtilFile.PathExists(fw.filename)
@@ -303,7 +353,7 @@ func (fw *FileWriter) writeByConfig(config *FileConfig, loggerMsg *loggerMessage
 	return nil
 }
 
-//slice file by date (y, m, d, h, i, s), rename file is file_time.log and recreate file
+// slice file by date (y, m, d, h, i, s), rename file is file_time.log and recreate file
 func (fw *FileWriter) sliceByDate(dataSlice string) error {
 
 	filename := fw.filename
@@ -329,7 +379,7 @@ func (fw *FileWriter) sliceByDate(dataSlice string) error {
 		oldFilename = strings.Replace(filename, filenameSuffix, "", 1) + "_" + startTime.Format("20060102") + filenameSuffix
 	}
 	if (dataSlice == FILE_SLICE_DATE_HOUR) &&
-		(startTime.Format("2006010215") != startTime.Format("2006010215")) {
+		(startTime.Format("2006010215") != nowTime.Format("2006010215")) {
 		isHaveSlice = true
 		oldFilename = strings.Replace(filename, filenameSuffix, "", 1) + "_" + startTime.Format("2006010215") + filenameSuffix
 	}
@@ -350,7 +400,7 @@ func (fw *FileWriter) sliceByDate(dataSlice string) error {
 	return nil
 }
 
-//slice file by line, if maxLine < fileLine, rename file is file_line_maxLine_time.log and recreate file
+// slice file by line, if maxLine < fileLine, rename file is file_line_maxLine_time.log and recreate file
 func (fw *FileWriter) sliceByFileLines(maxLine int64) error {
 
 	filename := fw.filename
@@ -375,7 +425,7 @@ func (fw *FileWriter) sliceByFileLines(maxLine int64) error {
 	return nil
 }
 
-//slice file by size, if maxSize < fileSize, rename file is file_size_maxSize_time.log and recreate file
+// slice file by size, if maxSize < fileSize, rename file is file_size_maxSize_time.log and recreate file
 func (fw *FileWriter) sliceByFileSize(maxSize int64) error {
 
 	filename := fw.filename
@@ -400,17 +450,17 @@ func (fw *FileWriter) sliceByFileSize(maxSize int64) error {
 	return nil
 }
 
-//get file object
-//params : filename
-//return : *os.file, error
+// get file object
+// params : filename
+// return : *os.file, error
 func (fw *FileWriter) getFileObject(filename string) (file *os.File, err error) {
 	file, err = os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0766)
 	return file, err
 }
 
-//get file size
-//params : filename
-//return : fileSize(byte int64), error
+// get file size
+// params : filename
+// return : fileSize(byte int64), error
 func (fw *FileWriter) getFileSize(filename string) (fileSize int64, err error) {
 	fileInfo, err := os.Stat(filename)
 	if err != nil {

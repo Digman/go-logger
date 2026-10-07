@@ -14,14 +14,20 @@ func TestLogger_Attach(t *testing.T) {
 
 	logger := NewLogger()
 	fileConfig := &FileConfig{
-		Filename: "./test.log",
+		Filename:  "./test.log",
+		DateSlice: "d",
 	}
 	logger.Attach("file", LOGGER_LEVEL_DEBUG, fileConfig)
 	outputs := logger.outputs
+	found := false
 	for _, outputLogger := range outputs {
-		if outputLogger.Name != "file" {
-			t.Error("file attach failed")
+		if outputLogger.Name == "file" {
+			found = true
+			break
 		}
+	}
+	if !found {
+		t.Error("file attach failed")
 	}
 }
 
